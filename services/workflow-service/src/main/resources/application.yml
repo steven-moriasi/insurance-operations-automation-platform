@@ -1,6 +1,18 @@
 spring:
   application:
     name: insurance-workflow-service
+  security:
+    oauth2:
+      client:
+        registration:
+          case-service:
+            provider: keycloak
+            authorization-grant-type: client_credentials
+            client-id: ${WORKFLOW_OIDC_CLIENT_ID:insurance-workflow-service}
+            client-secret: ${WORKFLOW_OIDC_CLIENT_SECRET}
+        provider:
+          keycloak:
+            token-uri: ${OIDC_TOKEN_URI:http://localhost:8080/realms/insurance/protocol/openid-connect/token}
 
 server:
   port: ${WORKFLOW_SERVICE_PORT:8082}
@@ -20,6 +32,8 @@ management:
       application: ${spring.application.name}
 
 insurance:
+  services:
+    case-service-base-url: ${CASE_SERVICE_BASE_URL:http://localhost:8081}
   temporal:
     target: ${TEMPORAL_TARGET:localhost:7233}
     namespace: ${TEMPORAL_NAMESPACE:default}

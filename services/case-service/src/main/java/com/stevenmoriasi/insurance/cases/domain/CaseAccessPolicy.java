@@ -13,6 +13,7 @@ class CaseAccessPolicy {
                         "SENIOR_CLAIMS_APPROVER",
                         "PROCESS_OWNER",
                         "FINANCE_OPERATOR",
+                        "WORKFLOW_OPERATOR",
                         "PLATFORM_ADMIN")) {
             return;
         }

@@ -102,6 +102,24 @@ public class CaseController {
                 caseManagement.completeTask(claimReference, taskId, actor(authentication)));
     }
 
+    @PostMapping("/{claimReference}/tasks/{taskId}/cancel")
+    public TaskView cancelTask(
+            @PathVariable String claimReference,
+            @PathVariable UUID taskId,
+            @Valid @RequestBody CancelTaskRequest request,
+            Authentication authentication) {
+        return TaskView.from(
+                caseManagement.cancelTask(
+                        claimReference, taskId, request.reason(), actor(authentication)));
+    }
+
+    @PostMapping("/{claimReference}/workflow-events/completed")
+    public ResponseEntity<Void> recordWorkflowCompletion(
+            @PathVariable String claimReference, Authentication authentication) {
+        caseManagement.recordWorkflowCompletion(claimReference, actor(authentication));
+        return ResponseEntity.noContent().build();
+    }
+
     @PostMapping("/{claimReference}/evidence")
     public ResponseEntity<EvidenceView> recordEvidence(
             @PathVariable String claimReference,
@@ -251,13 +269,16 @@ public class CaseController {
 
     public record CreateTaskRequest(
             @NotBlank @Size(max = 64) String taskType,
+            @Pattern(regexp = "[A-Z][A-Z0-9_]{1,63}") String candidateRole,
             @Size(max = 128) String assignee,
             @NotNull @Future Instant dueAt) {
 
         CreateTask toCommand() {
-            return new CreateTask(taskType, assignee, dueAt);
+            return new CreateTask(taskType, candidateRole, assignee, dueAt);
         }
     }
+
+    public record CancelTaskRequest(@NotBlank @Size(max = 256) String reason) {}
 
     public record RecordEvidenceRequest(
             @NotBlank @Size(max = 64) String evidenceType,
@@ -390,6 +411,7 @@ public class CaseController {
             UUID id,
             String taskType,
             String status,
+            String candidateRole,
             String assignee,
             Instant dueAt,
             Instant createdAt,
@@ -400,6 +422,7 @@ public class CaseController {
                     task.getId(),
                     task.getTaskType(),
                     task.getStatus().name(),
+                    task.getCandidateRole(),
                     task.getAssignee(),
                     task.getDueAt(),
                     task.getCreatedAt(),

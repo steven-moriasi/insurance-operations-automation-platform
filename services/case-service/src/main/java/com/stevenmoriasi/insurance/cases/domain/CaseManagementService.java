@@ -140,7 +140,12 @@ public class CaseManagementService {
     public CaseTask createTask(String claimReference, CreateTask command, CaseActor actor) {
         ClaimCase claim = requireClaim(claimReference);
         accessPolicy.requireCaseAccess(claim, actor);
-        accessPolicy.requireAnyRole(actor, "CLAIMS_OFFICER", "CLAIMS_SUPERVISOR", "PLATFORM_ADMIN");
+        accessPolicy.requireAnyRole(
+                actor,
+                "CLAIMS_OFFICER",
+                "CLAIMS_SUPERVISOR",
+                "WORKFLOW_OPERATOR",
+                "PLATFORM_ADMIN");
         Instant now = clock.instant();
         if (!command.dueAt().isAfter(now)) {
             throw invalid("Task due time must be in the future");
@@ -151,6 +156,7 @@ public class CaseManagementService {
                                 UUID.randomUUID(),
                                 claim.getId(),
                                 command.taskType(),
+                                command.candidateRole(),
                                 command.assignee(),
                                 command.dueAt(),
                                 now));
@@ -160,6 +166,35 @@ public class CaseManagementService {
                 actor,
                 Map.of("taskId", task.getId(), "taskType", task.getTaskType()));
         return task;
+    }
+
+    @Transactional
+    public CaseTask cancelTask(String claimReference, UUID taskId, String reason, CaseActor actor) {
+        ClaimCase claim = requireClaim(claimReference);
+        accessPolicy.requireCaseAccess(claim, actor);
+        accessPolicy.requireAnyRole(
+                actor, "CLAIMS_SUPERVISOR", "WORKFLOW_OPERATOR", "PLATFORM_ADMIN");
+        CaseTask task = requireTask(taskId);
+        requireBelongsToClaim(task.getClaimId(), claim);
+        if (task.getStatus() == CaseTypes.TaskStatus.COMPLETED
+                || task.getStatus() == CaseTypes.TaskStatus.CANCELLED) {
+            throw conflict("Task is already in a terminal state");
+        }
+        task.cancel(clock.instant());
+        audit(
+                claim.getId(),
+                "TASK_CANCELLED",
+                actor,
+                Map.of("taskId", task.getId(), "reason", reason));
+        return task;
+    }
+
+    @Transactional
+    public void recordWorkflowCompletion(String claimReference, CaseActor actor) {
+        ClaimCase claim = requireClaim(claimReference);
+        accessPolicy.requireCaseAccess(claim, actor);
+        accessPolicy.requireAnyRole(actor, "WORKFLOW_OPERATOR", "PLATFORM_ADMIN");
+        audit(claim.getId(), "CLAIM_WORKFLOW_COMPLETED", actor, Map.of());
     }
 
     @Transactional
@@ -452,7 +487,8 @@ public class CaseManagementService {
             String claimantEmailAddress,
             LocalDate lossDate) {}
 
-    public record CreateTask(String taskType, String assignee, Instant dueAt) {}
+    public record CreateTask(
+            String taskType, String candidateRole, String assignee, Instant dueAt) {}
 
     public record RecordEvidence(
             String evidenceType,

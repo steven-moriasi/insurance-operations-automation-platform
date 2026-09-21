@@ -3,6 +3,7 @@ package com.stevenmoriasi.insurance.cases.domain;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.stevenmoriasi.insurance.cases.domain.CaseManagementService.CreateTask;
 import com.stevenmoriasi.insurance.cases.domain.CaseManagementService.ReportClaim;
 import com.stevenmoriasi.insurance.cases.domain.CaseManagementService.RequestDecision;
 import com.stevenmoriasi.insurance.cases.domain.CaseManagementService.SubmitAssessment;
@@ -11,7 +12,9 @@ import com.stevenmoriasi.insurance.cases.domain.CaseTypes.AssessmentOutcome;
 import com.stevenmoriasi.insurance.cases.domain.CaseTypes.ClaimStatus;
 import com.stevenmoriasi.insurance.cases.domain.CaseTypes.DecisionStatus;
 import com.stevenmoriasi.insurance.cases.domain.CaseTypes.SettlementStatus;
+import com.stevenmoriasi.insurance.cases.domain.CaseTypes.TaskStatus;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
@@ -126,6 +129,37 @@ class CaseManagementServiceTest {
                 .isInstanceOfSatisfying(
                         CaseOperationException.class,
                         exception -> assertThat(exception.getReason()).isEqualTo(Reason.FORBIDDEN));
+    }
+
+    @Test
+    void letsTheWorkflowOperatorCreateAndCancelRoleBasedTasks() {
+        CaseActor owner = new CaseActor("claims.owner", Set.of("CLAIMS_OFFICER"));
+        ClaimCase claim = caseManagement.reportClaim(reportClaim("CLM-2003"), owner);
+        CaseActor workflow = new CaseActor("workflow.service", Set.of("WORKFLOW_OPERATOR"));
+
+        CaseTask task =
+                caseManagement.createTask(
+                        claim.getClaimReference(),
+                        new CreateTask(
+                                "EVIDENCE_COLLECTION",
+                                "CLAIMS_OFFICER",
+                                null,
+                                Instant.now().plusSeconds(3600)),
+                        workflow);
+        CaseTask cancelled =
+                caseManagement.cancelTask(
+                        claim.getClaimReference(), task.getId(), "Claim withdrawn", workflow);
+        caseManagement.recordWorkflowCompletion(claim.getClaimReference(), workflow);
+
+        assertThat(cancelled.getCandidateRole()).isEqualTo("CLAIMS_OFFICER");
+        assertThat(cancelled.getStatus()).isEqualTo(TaskStatus.CANCELLED);
+        assertThat(caseManagement.getCase(claim.getClaimReference(), workflow).auditEvents())
+                .extracting(AuditEvent::getEventType)
+                .containsExactly(
+                        "CLAIM_REPORTED",
+                        "TASK_CREATED",
+                        "TASK_CANCELLED",
+                        "CLAIM_WORKFLOW_COMPLETED");
     }
 
     private static ReportClaim reportClaim(String claimReference) {

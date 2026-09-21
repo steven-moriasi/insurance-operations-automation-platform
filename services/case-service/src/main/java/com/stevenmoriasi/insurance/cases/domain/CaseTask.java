@@ -20,6 +20,7 @@ public class CaseTask {
     @Enumerated(EnumType.STRING)
     private TaskStatus status;
 
+    private String candidateRole;
     private String assignee;
     private Instant dueAt;
     private Instant createdAt;
@@ -31,12 +32,14 @@ public class CaseTask {
             UUID id,
             UUID claimId,
             String taskType,
+            String candidateRole,
             String assignee,
             Instant dueAt,
             Instant createdAt) {
         this.id = id;
         this.claimId = claimId;
         this.taskType = taskType;
+        this.candidateRole = candidateRole;
         this.status = assignee == null ? TaskStatus.OPEN : TaskStatus.CLAIMED;
         this.assignee = assignee;
         this.dueAt = dueAt;
@@ -46,6 +49,11 @@ public class CaseTask {
     public void complete(Instant completedAt) {
         this.status = TaskStatus.COMPLETED;
         this.completedAt = completedAt;
+    }
+
+    public void cancel(Instant cancelledAt) {
+        this.status = TaskStatus.CANCELLED;
+        this.completedAt = cancelledAt;
     }
 
     public UUID getId() {
@@ -62,6 +70,10 @@ public class CaseTask {
 
     public TaskStatus getStatus() {
         return status;
+    }
+
+    public String getCandidateRole() {
+        return candidateRole;
     }
 
     public String getAssignee() {
