@@ -1,0 +1,1 @@
+"""Bounded insurance automation activities."""
