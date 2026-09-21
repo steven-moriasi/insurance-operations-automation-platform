@@ -26,7 +26,8 @@ The polling entry point requires:
 
 ```text
 INTEGRATION_SERVICE_URL
-AUTOMATION_WORKER_ACCESS_TOKEN
 ```
 
-Optional settings are `AUTOMATION_WORKER_ID` and `AUTOMATION_POLL_SECONDS`. Use a short-lived OAuth access token scoped to the `AUTOMATION_WORKER` role; do not place tokens in source control.
+Authentication uses either `AUTOMATION_WORKER_ACCESS_TOKEN` for a short-lived local token, or `OIDC_TOKEN_URL`, `AUTOMATION_WORKER_CLIENT_ID`, and `AUTOMATION_WORKER_CLIENT_SECRET` for renewable client-credentials access.
+
+Optional settings are `AUTOMATION_WORKER_ID` and `AUTOMATION_POLL_SECONDS`. The identity must be scoped to the `AUTOMATION_WORKER` role; do not place tokens or client secrets in source control.

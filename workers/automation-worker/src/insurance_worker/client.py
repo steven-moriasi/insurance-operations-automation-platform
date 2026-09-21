@@ -6,6 +6,8 @@ from typing import Any, cast
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
+from insurance_worker.auth import TokenProvider
+
 
 @dataclass(frozen=True)
 class WorkItem:
@@ -17,9 +19,9 @@ class WorkItem:
 
 
 class IntegrationClient:
-    def __init__(self, base_url: str, access_token: str, worker_id: str) -> None:
+    def __init__(self, base_url: str, token_provider: TokenProvider, worker_id: str) -> None:
         self._base_url = base_url.rstrip("/")
-        self._access_token = access_token
+        self._token_provider = token_provider
         self._worker_id = worker_id
 
     def claim(self) -> WorkItem | None:
@@ -99,7 +101,7 @@ class IntegrationClient:
         allow_no_content: bool = False,
     ) -> dict[str, Any] | None:
         request_headers = {
-            "Authorization": f"Bearer {self._access_token}",
+            "Authorization": f"Bearer {self._token_provider.access_token()}",
             "Accept": "application/json",
         }
         if headers:
