@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.stevenmoriasi.insurance.integrations.automation.AutomationWorkItem.WorkStatus;
 import com.stevenmoriasi.insurance.integrations.legacy.IntegrationConflictException;
 import com.stevenmoriasi.insurance.integrations.legacy.IntegrationNotFoundException;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -21,12 +22,16 @@ public class AutomationQueueService {
 
     private final AutomationWorkItemRepository workItems;
     private final ObjectMapper objectMapper;
+    private final MeterRegistry meterRegistry;
     private final Clock clock;
 
     public AutomationQueueService(
-            AutomationWorkItemRepository workItems, ObjectMapper objectMapper) {
+            AutomationWorkItemRepository workItems,
+            ObjectMapper objectMapper,
+            MeterRegistry meterRegistry) {
         this.workItems = workItems;
         this.objectMapper = objectMapper;
+        this.meterRegistry = meterRegistry;
         this.clock = Clock.systemUTC();
     }
 
@@ -58,21 +63,27 @@ public class AutomationQueueService {
                                 payloadJson,
                                 maximumAttempts,
                                 clock.instant()));
+        count("enqueued");
         return WorkItemView.from(workItem, objectMapper);
     }
 
     @Transactional
     public Optional<WorkItemView> claim(String workerId) {
         Instant now = clock.instant();
-        workItems
-                .findByStatusAndLeaseExpiresAtLessThan(WorkStatus.LEASED, now)
-                .forEach(item -> item.recoverExpiredLease(now));
+        var expired = workItems.findByStatusAndLeaseExpiresAtLessThan(WorkStatus.LEASED, now);
+        expired.forEach(item -> item.recoverExpiredLease(now));
+        if (!expired.isEmpty()) {
+            meterRegistry
+                    .counter("insurance.automation.work.items", "operation", "lease_recovered")
+                    .increment(expired.size());
+        }
         return workItems
                 .findFirstByStatusAndAvailableAtLessThanEqualOrderByCreatedAtAsc(
                         WorkStatus.READY, now)
                 .map(
                         item -> {
                             item.lease(workerId, LEASE_DURATION, now);
+                            count("leased");
                             return WorkItemView.from(item, objectMapper);
                         });
     }
@@ -81,6 +92,7 @@ public class AutomationQueueService {
     public WorkItemView complete(UUID workItemId, UUID leaseToken, JsonNode result) {
         AutomationWorkItem workItem = find(workItemId);
         workItem.complete(leaseToken, write(result), clock.instant());
+        count("completed");
         return WorkItemView.from(workItem, objectMapper);
     }
 
@@ -88,6 +100,7 @@ public class AutomationQueueService {
     public WorkItemView fail(UUID workItemId, UUID leaseToken, String error) {
         AutomationWorkItem workItem = find(workItemId);
         workItem.fail(leaseToken, error, clock.instant());
+        count(workItem.getStatus() == WorkStatus.DEAD_LETTER ? "dead_lettered" : "retry_scheduled");
         return WorkItemView.from(workItem, objectMapper);
     }
 
@@ -105,6 +118,7 @@ public class AutomationQueueService {
                     "Automation work item does not match the supplied business object");
         }
         workItem.complete(leaseToken, write(result), clock.instant());
+        count("completed");
         return WorkItemView.from(workItem, objectMapper);
     }
 
@@ -123,6 +137,12 @@ public class AutomationQueueService {
         } catch (JsonProcessingException exception) {
             throw new IllegalArgumentException("Automation payload is invalid", exception);
         }
+    }
+
+    private void count(String operation) {
+        meterRegistry
+                .counter("insurance.automation.work.items", "operation", operation)
+                .increment();
     }
 
     public record WorkItemView(

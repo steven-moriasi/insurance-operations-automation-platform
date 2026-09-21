@@ -36,6 +36,12 @@ management:
   metrics:
     tags:
       application: ${spring.application.name}
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLING_PROBABILITY:1.0}
+  otlp:
+    tracing:
+      endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:http://localhost:4318/v1/traces}
 
 insurance:
   security:
@@ -43,3 +49,7 @@ insurance:
   approval-limits:
     claims-approver: ${CLAIMS_APPROVER_LIMIT:100000}
     senior-claims-approver: ${SENIOR_CLAIMS_APPROVER_LIMIT:1000000}
+
+logging:
+  pattern:
+    level: "%5p [${spring.application.name:},%X{traceId:-},%X{spanId:-}]"

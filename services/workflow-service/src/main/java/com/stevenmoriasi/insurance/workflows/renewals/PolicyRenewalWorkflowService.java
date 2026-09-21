@@ -1,6 +1,7 @@
 package com.stevenmoriasi.insurance.workflows.renewals;
 
 import com.stevenmoriasi.insurance.workflows.config.TemporalProperties;
+import io.micrometer.core.instrument.MeterRegistry;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
@@ -13,11 +14,15 @@ public class PolicyRenewalWorkflowService {
 
     private final WorkflowClient workflowClient;
     private final TemporalProperties properties;
+    private final MeterRegistry meterRegistry;
 
     public PolicyRenewalWorkflowService(
-            WorkflowClient workflowClient, TemporalProperties properties) {
+            WorkflowClient workflowClient,
+            TemporalProperties properties,
+            MeterRegistry meterRegistry) {
         this.workflowClient = workflowClient;
         this.properties = properties;
+        this.meterRegistry = meterRegistry;
     }
 
     public WorkflowReference start(RenewalInput input) {
@@ -29,6 +34,7 @@ public class PolicyRenewalWorkflowService {
                                 .setTaskQueue(properties.taskQueue())
                                 .build());
         WorkflowExecution execution = WorkflowClient.start(workflow::run, input);
+        count("started");
         return new WorkflowReference(execution.getWorkflowId(), execution.getRunId());
     }
 
@@ -38,18 +44,22 @@ public class PolicyRenewalWorkflowService {
 
     public void customerDecision(String policyNumber, String decision) {
         workflow(policyNumber).customerDecision(decision);
+        count("customer_decision");
     }
 
     public void makerCheckerDecision(String policyNumber, boolean approved) {
         workflow(policyNumber).makerCheckerDecision(approved);
+        count(approved ? "maker_checker_approved" : "maker_checker_rejected");
     }
 
     public void paymentReconciled(String policyNumber, String paymentReference) {
         workflow(policyNumber).paymentReconciled(paymentReference);
+        count("payment_reconciled");
     }
 
     public void cancel(String policyNumber, String reason) {
         workflow(policyNumber).cancel(reason);
+        count("cancelled");
     }
 
     private PolicyRenewalWorkflow workflow(String policyNumber) {
@@ -59,6 +69,17 @@ public class PolicyRenewalWorkflowService {
 
     private static String workflowId(String policyNumber) {
         return WORKFLOW_ID_PREFIX + policyNumber;
+    }
+
+    private void count(String operation) {
+        meterRegistry
+                .counter(
+                        "insurance.workflow.operations",
+                        "journey",
+                        "policy_renewal",
+                        "operation",
+                        operation)
+                .increment();
     }
 
     public record WorkflowReference(String workflowId, String runId) {}

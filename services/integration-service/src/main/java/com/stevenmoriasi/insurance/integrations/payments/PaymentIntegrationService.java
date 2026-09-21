@@ -6,6 +6,7 @@ import com.stevenmoriasi.insurance.integrations.domain.OutboxEvent;
 import com.stevenmoriasi.insurance.integrations.domain.OutboxEventRepository;
 import com.stevenmoriasi.insurance.integrations.legacy.IntegrationConflictException;
 import com.stevenmoriasi.insurance.integrations.legacy.IntegrationNotFoundException;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -25,17 +26,20 @@ public class PaymentIntegrationService {
     private final OutboxEventRepository outbox;
     private final PaymentCallbackVerifier callbackVerifier;
     private final ObjectMapper objectMapper;
+    private final MeterRegistry meterRegistry;
     private final Clock clock;
 
     public PaymentIntegrationService(
             PaymentInstructionRepository payments,
             OutboxEventRepository outbox,
             PaymentCallbackVerifier callbackVerifier,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            MeterRegistry meterRegistry) {
         this.payments = payments;
         this.outbox = outbox;
         this.callbackVerifier = callbackVerifier;
         this.objectMapper = objectMapper;
+        this.meterRegistry = meterRegistry;
         this.clock = Clock.systemUTC();
     }
 
@@ -66,6 +70,7 @@ public class PaymentIntegrationService {
                                 "SYN-PAY-" + UUID.randomUUID(),
                                 now));
         writeEvent(payment, "insurance.payment.instructed", now);
+        count("instructed");
         return PaymentView.from(payment);
     }
 
@@ -94,6 +99,7 @@ public class PaymentIntegrationService {
                                                 "Payment provider reference was not found"));
         if (payment.getCallbackHash() != null) {
             if (payment.getCallbackHash().equals(callbackHash)) {
+                count("duplicate_callback");
                 return PaymentView.from(payment);
             }
             throw new IntegrationConflictException(
@@ -106,6 +112,7 @@ public class PaymentIntegrationService {
         if ("SUCCESS".equals(callback.status()) && exactAmount && exactCurrency) {
             payment.confirm(callbackHash, now);
             writeEvent(payment, "insurance.payment.confirmed", now);
+            count("confirmed");
         } else {
             String reason =
                     "SUCCESS".equals(callback.status())
@@ -113,6 +120,7 @@ public class PaymentIntegrationService {
                             : "Provider reported payment failure";
             payment.fail(callbackHash, reason, now);
             writeEvent(payment, "insurance.payment.rejected", now);
+            count("rejected");
         }
         return PaymentView.from(payment);
     }
@@ -142,6 +150,10 @@ public class PaymentIntegrationService {
         } catch (NoSuchAlgorithmException exception) {
             throw new IllegalStateException("SHA-256 is unavailable", exception);
         }
+    }
+
+    private void count(String outcome) {
+        meterRegistry.counter("insurance.payment.operations", "outcome", outcome).increment();
     }
 
     public record PaymentCallback(
