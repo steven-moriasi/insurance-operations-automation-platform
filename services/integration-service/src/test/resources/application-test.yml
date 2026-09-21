@@ -14,6 +14,8 @@ spring:
           issuer-uri: https://issuer.example.test
 
 insurance:
+  payments:
+    callback-secret: integration-test-callback-secret
   legacy:
     datasource:
       url: jdbc:h2:mem:legacy;MODE=MySQL;DB_CLOSE_DELAY=-1

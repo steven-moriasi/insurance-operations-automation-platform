@@ -2,6 +2,7 @@ package com.stevenmoriasi.insurance.integrations.api;
 
 import com.stevenmoriasi.insurance.integrations.legacy.IntegrationConflictException;
 import com.stevenmoriasi.insurance.integrations.legacy.IntegrationNotFoundException;
+import com.stevenmoriasi.insurance.integrations.payments.InvalidCallbackSignatureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -18,5 +19,10 @@ class IntegrationApiExceptionHandler {
     @ExceptionHandler(IntegrationNotFoundException.class)
     ProblemDetail notFound(IntegrationNotFoundException exception) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, exception.getMessage());
+    }
+
+    @ExceptionHandler(InvalidCallbackSignatureException.class)
+    ProblemDetail invalidSignature(InvalidCallbackSignatureException exception) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, exception.getMessage());
     }
 }

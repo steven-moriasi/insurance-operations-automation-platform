@@ -33,6 +33,8 @@ management:
       application: ${spring.application.name}
 
 insurance:
+  payments:
+    callback-secret: ${PAYMENT_CALLBACK_SECRET}
   security:
     client-id: ${INTEGRATION_API_OIDC_CLIENT_ID:insurance-integration-service}
   legacy:

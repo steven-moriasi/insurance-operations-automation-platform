@@ -28,6 +28,8 @@ public class SecurityConfig {
                         requests ->
                                 requests.requestMatchers("/actuator/health/**")
                                         .permitAll()
+                                        .requestMatchers("/callbacks/payments/**")
+                                        .permitAll()
                                         .requestMatchers("/actuator/**")
                                         .hasRole("PLATFORM_ADMIN")
                                         .anyRequest()
