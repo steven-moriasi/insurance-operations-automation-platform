@@ -36,3 +36,10 @@ management:
   metrics:
     tags:
       application: ${spring.application.name}
+
+insurance:
+  security:
+    client-id: ${CASE_SERVICE_OIDC_CLIENT_ID:insurance-case-service}
+  approval-limits:
+    claims-approver: ${CLAIMS_APPROVER_LIMIT:100000}
+    senior-claims-approver: ${SENIOR_CLAIMS_APPROVER_LIMIT:1000000}
