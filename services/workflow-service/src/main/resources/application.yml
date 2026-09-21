@@ -1,0 +1,26 @@
+spring:
+  application:
+    name: insurance-workflow-service
+
+server:
+  port: ${WORKFLOW_SERVICE_PORT:8082}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+insurance:
+  temporal:
+    target: ${TEMPORAL_TARGET:localhost:7233}
+    namespace: ${TEMPORAL_NAMESPACE:default}
+    task-queue: ${TEMPORAL_CLAIMS_TASK_QUEUE:insurance-motor-claims}
