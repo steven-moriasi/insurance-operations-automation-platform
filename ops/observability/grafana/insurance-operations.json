@@ -1,0 +1,85 @@
+{
+  "annotations": {"list": []},
+  "editable": false,
+  "panels": [
+    {
+      "datasource": {"type": "prometheus", "uid": "Prometheus"},
+      "fieldConfig": {"defaults": {"unit": "reqps"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+      "id": 1,
+      "targets": [
+        {
+          "expr": "sum by (application) (rate(http_server_requests_seconds_count[5m]))",
+          "legendFormat": "{{application}}"
+        }
+      ],
+      "title": "API request rate",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "Prometheus"},
+      "fieldConfig": {"defaults": {"unit": "s"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+      "id": 2,
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, application) (rate(http_server_requests_seconds_bucket[5m])))",
+          "legendFormat": "{{application}} p95"
+        }
+      ],
+      "title": "API latency",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "Prometheus"},
+      "fieldConfig": {"defaults": {}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+      "id": 3,
+      "targets": [
+        {
+          "expr": "sum by (operation) (increase(insurance_automation_work_items_total[1h]))",
+          "legendFormat": "{{operation}}"
+        }
+      ],
+      "title": "Automation work outcomes",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "Prometheus"},
+      "fieldConfig": {"defaults": {}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+      "id": 4,
+      "targets": [
+        {
+          "expr": "sum by (journey, operation) (increase(insurance_workflow_operations_total[1h]))",
+          "legendFormat": "{{journey}} / {{operation}}"
+        }
+      ],
+      "title": "Workflow operations",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "Prometheus"},
+      "fieldConfig": {"defaults": {}, "overrides": []},
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 16},
+      "id": 5,
+      "targets": [
+        {
+          "expr": "sum by (outcome) (increase(insurance_payment_operations_total[1h]))",
+          "legendFormat": "{{outcome}}"
+        }
+      ],
+      "title": "Payment reconciliation outcomes",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "tags": ["insurance", "reference-platform"],
+  "templating": {"list": []},
+  "time": {"from": "now-6h", "to": "now"},
+  "timezone": "browser",
+  "title": "Insurance Operations",
+  "uid": "insurance-operations",
+  "version": 1
+}

@@ -1,0 +1,38 @@
+groups:
+  - name: insurance-platform
+    rules:
+      - alert: InsuranceServiceUnavailable
+        expr: up{job=~"case-service|integration-service|workflow-service|web-bff"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.job }} is unavailable"
+          runbook: "docs/runbooks/service-recovery.md"
+      - alert: InsuranceApiErrorBudgetBurn
+        expr: |
+          (
+            sum by (application) (rate(http_server_requests_seconds_count{status=~"5.."}[5m]))
+            /
+            sum by (application) (rate(http_server_requests_seconds_count[5m]))
+          ) > 0.05
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.application }} has more than 5% server errors"
+          runbook: "docs/runbooks/service-recovery.md"
+      - alert: AutomationWorkDeadLettered
+        expr: increase(insurance_automation_work_items_total{operation="dead_lettered"}[15m]) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: "Automation work entered the dead-letter state"
+          runbook: "docs/runbooks/automation-recovery.md"
+      - alert: PaymentReconciliationRejected
+        expr: increase(insurance_payment_operations_total{outcome="rejected"}[15m]) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: "A payment callback failed reconciliation"
+          runbook: "docs/runbooks/payment-reconciliation.md"
