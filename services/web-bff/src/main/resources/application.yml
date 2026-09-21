@@ -1,0 +1,50 @@
+spring:
+  application:
+    name: insurance-operations-web-bff
+  security:
+    oauth2:
+      client:
+        registration:
+          keycloak:
+            client-id: ${OIDC_CLIENT_ID:insurance-operations-web}
+            client-secret: ${OIDC_CLIENT_SECRET}
+            authorization-grant-type: authorization_code
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+            scope: openid,profile,email
+        provider:
+          keycloak:
+            authorization-uri: ${OIDC_AUTHORIZATION_URI:http://localhost:8088/realms/insurance/protocol/openid-connect/auth}
+            token-uri: ${OIDC_TOKEN_URI:http://keycloak:8080/realms/insurance/protocol/openid-connect/token}
+            user-info-uri: ${OIDC_USER_INFO_URI:http://keycloak:8080/realms/insurance/protocol/openid-connect/userinfo}
+            jwk-set-uri: ${OIDC_JWK_SET_URI:http://keycloak:8080/realms/insurance/protocol/openid-connect/certs}
+            user-name-attribute: preferred_username
+
+server:
+  port: ${SERVER_PORT:8080}
+  servlet:
+    session:
+      cookie:
+        name: INSURANCE_SESSION
+        http-only: true
+        secure: ${SESSION_COOKIE_SECURE:false}
+        same-site: lax
+      timeout: 30m
+  forward-headers-strategy: framework
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+logging:
+  pattern:
+    level: "%5p [${spring.application.name:},%X{traceId:-},%X{spanId:-}]"
