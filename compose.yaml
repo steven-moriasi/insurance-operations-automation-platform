@@ -37,6 +37,8 @@ services:
     environment:
       KC_BOOTSTRAP_ADMIN_USERNAME: admin
       KC_BOOTSTRAP_ADMIN_PASSWORD: local-admin-only
+      KC_HOSTNAME: http://localhost:8088
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
     ports:
       - "8088:8080"
     volumes:
