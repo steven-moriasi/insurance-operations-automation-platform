@@ -1,0 +1,84 @@
+{
+  "realm": "insurance",
+  "enabled": true,
+  "displayName": "Insurance Operations Reference Platform",
+  "roles": {
+    "realm": [
+      {"name": "AUTOMATION_WORKER"},
+      {"name": "CLAIMS_APPROVER"},
+      {"name": "CLAIMS_ASSESSOR"},
+      {"name": "CLAIMS_OFFICER"},
+      {"name": "CLAIMS_SUPERVISOR"},
+      {"name": "FINANCE_OPERATOR"},
+      {"name": "PLATFORM_ADMIN"},
+      {"name": "PROCESS_ANALYST"},
+      {"name": "PROCESS_OWNER"},
+      {"name": "SENIOR_CLAIMS_APPROVER"},
+      {"name": "WORKFLOW_OPERATOR"}
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "insurance-operations-web",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "local-web-client-only",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "redirectUris": ["http://localhost:3000/login/oauth2/code/keycloak"],
+      "webOrigins": ["http://localhost:3000"]
+    },
+    {
+      "clientId": "insurance-workflow-service",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "local-workflow-client-only",
+      "standardFlowEnabled": false,
+      "serviceAccountsEnabled": true
+    },
+    {
+      "clientId": "insurance-automation-worker",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "local-automation-client-only",
+      "standardFlowEnabled": false,
+      "serviceAccountsEnabled": true
+    }
+  ],
+  "users": [
+    {
+      "username": "operations.owner",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Operations",
+      "lastName": "Owner",
+      "email": "operations.owner@example.test",
+      "credentials": [
+        {"type": "password", "value": "local-operations-only", "temporary": false}
+      ],
+      "realmRoles": [
+        "CLAIMS_APPROVER",
+        "CLAIMS_ASSESSOR",
+        "CLAIMS_OFFICER",
+        "CLAIMS_SUPERVISOR",
+        "FINANCE_OPERATOR",
+        "PLATFORM_ADMIN",
+        "PROCESS_ANALYST",
+        "PROCESS_OWNER",
+        "SENIOR_CLAIMS_APPROVER"
+      ]
+    },
+    {
+      "username": "service-account-insurance-workflow-service",
+      "enabled": true,
+      "serviceAccountClientId": "insurance-workflow-service",
+      "realmRoles": ["WORKFLOW_OPERATOR"]
+    },
+    {
+      "username": "service-account-insurance-automation-worker",
+      "enabled": true,
+      "serviceAccountClientId": "insurance-automation-worker",
+      "realmRoles": ["AUTOMATION_WORKER"]
+    }
+  ]
+}

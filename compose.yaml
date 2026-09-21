@@ -1,0 +1,259 @@
+name: insurance-operations
+
+services:
+  postgres:
+    image: postgres:17.6-alpine
+    environment:
+      POSTGRES_USER: insurance
+      POSTGRES_PASSWORD: local-insurance-only
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./deploy/local/postgres-init.sql:/docker-entrypoint-initdb.d/01-databases.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U insurance"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  legacy-mysql:
+    image: mysql:8.4.6
+    environment:
+      MYSQL_DATABASE: legacy_policy
+      MYSQL_USER: legacy_reader
+      MYSQL_PASSWORD: local-legacy-only
+      MYSQL_ROOT_PASSWORD: local-root-only
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./deploy/local/mysql-init.sql:/docker-entrypoint-initdb.d/01-legacy.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-plocal-root-only"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.3.5
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: local-admin-only
+    ports:
+      - "8088:8080"
+    volumes:
+      - ./deploy/local/keycloak-realm.json:/opt/keycloak/data/import/insurance-realm.json:ro
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "exec 3<>/dev/tcp/127.0.0.1/8080 && printf 'GET /realms/insurance HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && cat <&3 | grep -q '200 OK'",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+  temporal:
+    image: temporalio/auto-setup:1.28.1
+    environment:
+      DB: postgres12
+      DB_PORT: 5432
+      POSTGRES_USER: insurance
+      POSTGRES_PWD: local-insurance-only
+      POSTGRES_SEEDS: postgres
+      DBNAME: temporal
+      VISIBILITY_DBNAME: temporal_visibility
+      DYNAMIC_CONFIG_FILE_PATH: config/dynamicconfig/development-sql.yaml
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "7233:7233"
+
+  temporal-ui:
+    image: temporalio/ui:2.42.1
+    environment:
+      TEMPORAL_ADDRESS: temporal:7233
+    depends_on:
+      - temporal
+    ports:
+      - "8089:8080"
+
+  minio:
+    image: quay.io/minio/minio:RELEASE.2025-07-23T15-54-02Z
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: insurance-local
+      MINIO_ROOT_PASSWORD: local-object-storage-only
+    volumes:
+      - minio-data:/data
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+
+  minio-setup:
+    image: quay.io/minio/mc:RELEASE.2025-07-21T05-28-08Z
+    entrypoint:
+      [
+        "/bin/sh",
+        "-c",
+        "until mc alias set local http://minio:9000 insurance-local local-object-storage-only; do sleep 2; done; mc mb --ignore-existing local/insurance-evidence",
+      ]
+    depends_on:
+      - minio
+
+  case-service:
+    build:
+      context: .
+      dockerfile: deploy/container/java-service.Dockerfile
+      args:
+        SERVICE: case-service
+    environment:
+      CASE_DATABASE_URL: jdbc:postgresql://postgres:5432/insurance_cases
+      CASE_DATABASE_USERNAME: insurance
+      CASE_DATABASE_PASSWORD: local-insurance-only
+      OIDC_ISSUER_URI: http://localhost:8088/realms/insurance
+      OIDC_JWK_SET_URI: http://keycloak:8080/realms/insurance/protocol/openid-connect/certs
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://otel-collector:4318/v1/traces
+    depends_on:
+      postgres:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+
+  integration-service:
+    build:
+      context: .
+      dockerfile: deploy/container/java-service.Dockerfile
+      args:
+        SERVICE: integration-service
+    environment:
+      INTEGRATION_DATABASE_URL: jdbc:postgresql://postgres:5432/insurance_integrations
+      INTEGRATION_DATABASE_USERNAME: insurance
+      INTEGRATION_DATABASE_PASSWORD: local-insurance-only
+      LEGACY_DATABASE_URL: jdbc:mysql://legacy-mysql:3306/legacy_policy
+      LEGACY_DATABASE_USERNAME: legacy_reader
+      LEGACY_DATABASE_PASSWORD: local-legacy-only
+      OIDC_ISSUER_URI: http://localhost:8088/realms/insurance
+      OIDC_JWK_SET_URI: http://keycloak:8080/realms/insurance/protocol/openid-connect/certs
+      OBJECT_STORAGE_ENDPOINT: http://minio:9000
+      OBJECT_STORAGE_REGION: us-east-1
+      OBJECT_STORAGE_BUCKET: insurance-evidence
+      OBJECT_STORAGE_ACCESS_KEY: insurance-local
+      OBJECT_STORAGE_SECRET_KEY: local-object-storage-only
+      PAYMENT_CALLBACK_SECRET: local-payment-callback-only
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://otel-collector:4318/v1/traces
+    depends_on:
+      postgres:
+        condition: service_healthy
+      legacy-mysql:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+      minio-setup:
+        condition: service_completed_successfully
+
+  workflow-service:
+    build:
+      context: .
+      dockerfile: deploy/container/java-service.Dockerfile
+      args:
+        SERVICE: workflow-service
+    environment:
+      OIDC_ISSUER_URI: http://localhost:8088/realms/insurance
+      OIDC_JWK_SET_URI: http://keycloak:8080/realms/insurance/protocol/openid-connect/certs
+      OIDC_TOKEN_URI: http://keycloak:8080/realms/insurance/protocol/openid-connect/token
+      WORKFLOW_OIDC_CLIENT_ID: insurance-workflow-service
+      WORKFLOW_OIDC_CLIENT_SECRET: local-workflow-client-only
+      CASE_SERVICE_BASE_URL: http://case-service:8081
+      TEMPORAL_TARGET: temporal:7233
+      TEMPORAL_NAMESPACE: default
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://otel-collector:4318/v1/traces
+    depends_on:
+      - temporal
+      - case-service
+
+  web-bff:
+    build:
+      context: .
+      dockerfile: deploy/container/java-service.Dockerfile
+      args:
+        SERVICE: web-bff
+    environment:
+      OIDC_CLIENT_ID: insurance-operations-web
+      OIDC_CLIENT_SECRET: local-web-client-only
+      OIDC_AUTHORIZATION_URI: http://localhost:8088/realms/insurance/protocol/openid-connect/auth
+      OIDC_TOKEN_URI: http://keycloak:8080/realms/insurance/protocol/openid-connect/token
+      OIDC_USER_INFO_URI: http://keycloak:8080/realms/insurance/protocol/openid-connect/userinfo
+      OIDC_JWK_SET_URI: http://keycloak:8080/realms/insurance/protocol/openid-connect/certs
+      CASE_SERVICE_BASE_URL: http://case-service:8081
+      INTEGRATION_SERVICE_BASE_URL: http://integration-service:8083
+      WORKFLOW_SERVICE_BASE_URL: http://workflow-service:8082
+      SESSION_COOKIE_SECURE: "false"
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://otel-collector:4318/v1/traces
+    depends_on:
+      - case-service
+      - integration-service
+      - workflow-service
+
+  operations-web:
+    build:
+      context: .
+      dockerfile: deploy/container/web.Dockerfile
+    environment:
+      BFF_URL: http://web-bff:8080
+      FORWARDED_PROTO: http
+    depends_on:
+      - web-bff
+    ports:
+      - "3000:8080"
+
+  automation-worker:
+    build:
+      context: .
+      dockerfile: deploy/container/automation-worker.Dockerfile
+    environment:
+      INTEGRATION_SERVICE_URL: http://integration-service:8083
+      OIDC_TOKEN_URL: http://keycloak:8080/realms/insurance/protocol/openid-connect/token
+      AUTOMATION_WORKER_CLIENT_ID: insurance-automation-worker
+      AUTOMATION_WORKER_CLIENT_SECRET: local-automation-client-only
+    depends_on:
+      - integration-service
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.135.0
+    command: ["--config=/etc/otelcol-contrib/config.yaml"]
+    volumes:
+      - ./ops/observability/otel-collector.yml:/etc/otelcol-contrib/config.yaml:ro
+    depends_on:
+      - jaeger
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.71.0
+    ports:
+      - "16686:16686"
+
+  prometheus:
+    image: prom/prometheus:v3.6.0
+    command: ["--config.file=/etc/prometheus/prometheus.yml"]
+    volumes:
+      - ./ops/observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./ops/observability/insurance-alerts.yml:/etc/prometheus/insurance-alerts.yml:ro
+    ports:
+      - "9090:9090"
+
+  grafana:
+    image: grafana/grafana:12.1.1
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: local-grafana-only
+    volumes:
+      - ./ops/observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./ops/observability/grafana/insurance-operations.json:/var/lib/grafana/dashboards/insurance-operations.json:ro
+    depends_on:
+      - prometheus
+    ports:
+      - "3001:3000"
+
+volumes:
+  minio-data:
+  mysql-data:
+  postgres-data:

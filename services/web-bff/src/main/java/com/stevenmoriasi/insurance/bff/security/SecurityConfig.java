@@ -36,7 +36,8 @@ public class SecurityConfig {
                                                 "/assets/**",
                                                 "/favicon.ico",
                                                 "/api/public/**",
-                                                "/actuator/health/**")
+                                                "/actuator/health/**",
+                                                "/actuator/prometheus")
                                         .permitAll()
                                         .requestMatchers("/api/admin/**")
                                         .hasRole("PLATFORM_ADMIN")
