@@ -1,0 +1,52 @@
+name: Release images
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [case-service, integration-service, workflow-service, web-bff]
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Authenticate to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+      - name: Build and publish immutable service image
+        env:
+          IMAGE: ghcr.io/${{ github.repository_owner }}/insurance-${{ matrix.service }}:${{ github.ref_name }}
+        run: |
+          docker build \
+            --build-arg "SERVICE=${{ matrix.service }}" \
+            -f deploy/container/java-service.Dockerfile \
+            -t "$IMAGE" .
+          docker push "$IMAGE"
+          docker inspect --format='{{index .RepoDigests 0}}' "$IMAGE" >> "$GITHUB_STEP_SUMMARY"
+
+  publish-auxiliary:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Authenticate to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+      - name: Build and publish web image
+        env:
+          IMAGE: ghcr.io/${{ github.repository_owner }}/insurance-operations-web:${{ github.ref_name }}
+        run: |
+          docker build -f deploy/container/web.Dockerfile -t "$IMAGE" .
+          docker push "$IMAGE"
+          docker inspect --format='{{index .RepoDigests 0}}' "$IMAGE" >> "$GITHUB_STEP_SUMMARY"
+      - name: Build and publish automation worker image
+        env:
+          IMAGE: ghcr.io/${{ github.repository_owner }}/insurance-automation-worker:${{ github.ref_name }}
+        run: |
+          docker build -f deploy/container/automation-worker.Dockerfile -t "$IMAGE" .
+          docker push "$IMAGE"
+          docker inspect --format='{{index .RepoDigests 0}}' "$IMAGE" >> "$GITHUB_STEP_SUMMARY"

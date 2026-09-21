@@ -1,0 +1,94 @@
+name: Continuous integration
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  java:
+    runs-on: ubuntu-latest
+    container: maven:3.9.11-eclipse-temurin-21
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - run: mvn -B spotless:check test
+
+  web:
+    runs-on: ubuntu-latest
+    container: node:22.20.0-alpine
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+
+  automation-worker:
+    runs-on: ubuntu-latest
+    container: python:3.12.11-slim
+    defaults:
+      run:
+        working-directory: workers/automation-worker
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - run: pip install --no-cache-dir -e ".[dev]"
+      - run: ruff check .
+      - run: ruff format --check .
+      - run: mypy
+      - run: pytest -q
+
+  delivery-definitions:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Validate local orchestration
+        run: docker compose config --quiet
+      - name: Render OpenShift definitions
+        run: |
+          docker run --rm \
+            -v "$PWD:/workspace" \
+            -w /workspace \
+            registry.k8s.io/kubectl:v1.34.1 \
+            kustomize deploy/openshift/base > /tmp/insurance-openshift.yaml
+          test -s /tmp/insurance-openshift.yaml
+      - name: Validate Terraform
+        run: |
+          docker run --rm \
+            -v "$PWD/infrastructure/aws:/workspace" \
+            -w /workspace \
+            hashicorp/terraform:1.13.3 fmt -check
+          docker run --rm \
+            -v "$PWD/infrastructure/aws:/workspace" \
+            -w /workspace \
+            hashicorp/terraform:1.13.3 init -backend=false
+          docker run --rm \
+            -v "$PWD/infrastructure/aws:/workspace" \
+            -w /workspace \
+            hashicorp/terraform:1.13.3 validate
+
+  container-builds:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [case-service, integration-service, workflow-service, web-bff]
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - run: |
+          docker build \
+            --build-arg "SERVICE=${{ matrix.service }}" \
+            -f deploy/container/java-service.Dockerfile \
+            -t "insurance-${{ matrix.service }}:ci" .
+
+  auxiliary-container-builds:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - run: docker build -f deploy/container/web.Dockerfile -t insurance-operations-web:ci .
+      - run: docker build -f deploy/container/automation-worker.Dockerfile -t insurance-automation-worker:ci .

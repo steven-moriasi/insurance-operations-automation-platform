@@ -18,6 +18,18 @@ Read [What We Are Building and Why](docs/architecture.md) for the authoritative 
 
 Motor claims provide the deepest implementation. The other journeys prove that the workflow and case-management primitives are reusable.
 
+## Run the complete local system
+
+Docker Compose starts the React application, BFF, three internal Spring Boot services, Python automation worker, PostgreSQL, synthetic MySQL policy store, Keycloak, Temporal, MinIO, OpenTelemetry Collector, Jaeger, Prometheus, and Grafana:
+
+```bash
+docker compose up --build
+```
+
+Open `http://localhost:3000` and sign in with the synthetic local user `operations.owner` / `local-operations-only`. Temporal UI is exposed on port `8089`, Jaeger on `16686`, Prometheus on `9090`, and Grafana on `3001`. All credentials in `compose.yaml` are local-only examples and must never be reused in a shared or deployed environment.
+
+See [Delivery and Deployment Evidence](docs/delivery.md) for image, OpenShift, AWS, promotion, and rollback contracts.
+
 ## Truth boundary
 
 This project:
