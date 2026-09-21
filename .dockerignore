@@ -1,0 +1,16 @@
+.git
+.github
+.idea
+.vscode
+**/node_modules
+**/dist
+**/target
+**/.terraform
+**/.venv
+**/.pytest_cache
+**/.ruff_cache
+**/.mypy_cache
+**/__pycache__
+*.log
+data
+tmp
