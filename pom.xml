@@ -11,6 +11,7 @@
   <description>Synthetic reference platform for governed insurance operations automation.</description>
 
   <modules>
+    <module>services/case-service</module>
     <module>services/web-bff</module>
   </modules>
 

@@ -1,0 +1,38 @@
+spring:
+  application:
+    name: insurance-case-service
+  datasource:
+    url: ${CASE_DATABASE_URL:jdbc:postgresql://localhost:5432/insurance_cases}
+    username: ${CASE_DATABASE_USERNAME:insurance}
+    password: ${CASE_DATABASE_PASSWORD}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${OIDC_ISSUER_URI:http://localhost:8088/realms/insurance}
+
+server:
+  port: ${CASE_SERVICE_PORT:8081}
+  forward-headers-strategy: framework
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+  metrics:
+    tags:
+      application: ${spring.application.name}

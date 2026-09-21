@@ -1,0 +1,13 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:case-service;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: validate
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: http://localhost:9999/reference-jwks
