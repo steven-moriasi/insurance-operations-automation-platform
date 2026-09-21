@@ -42,6 +42,16 @@ public class SecurityConfig {
                                         .hasRole("PLATFORM_ADMIN")
                                         .requestMatchers("/api/process/**")
                                         .hasAnyRole("PROCESS_OWNER", "PLATFORM_ADMIN")
+                                        .requestMatchers("/api/cases/**")
+                                        .hasAnyRole(
+                                                "CLAIMS_OFFICER",
+                                                "CLAIMS_ASSESSOR",
+                                                "CLAIMS_APPROVER",
+                                                "SENIOR_CLAIMS_APPROVER",
+                                                "CLAIMS_SUPERVISOR",
+                                                "FINANCE_OPERATOR",
+                                                "PROCESS_OWNER",
+                                                "PLATFORM_ADMIN")
                                         .anyRequest()
                                         .authenticated())
                 .csrf(
