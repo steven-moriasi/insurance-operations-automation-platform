@@ -33,6 +33,12 @@ management:
       application: ${spring.application.name}
 
 insurance:
+  object-storage:
+    endpoint: ${OBJECT_STORAGE_ENDPOINT:http://localhost:9000}
+    region: ${OBJECT_STORAGE_REGION:us-east-1}
+    bucket: ${OBJECT_STORAGE_BUCKET:insurance-evidence}
+    access-key: ${OBJECT_STORAGE_ACCESS_KEY}
+    secret-key: ${OBJECT_STORAGE_SECRET_KEY}
   payments:
     callback-secret: ${PAYMENT_CALLBACK_SECRET}
   security:

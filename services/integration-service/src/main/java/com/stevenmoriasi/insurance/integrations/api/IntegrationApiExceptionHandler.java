@@ -1,5 +1,6 @@
 package com.stevenmoriasi.insurance.integrations.api;
 
+import com.stevenmoriasi.insurance.integrations.automation.InvalidWorkLeaseException;
 import com.stevenmoriasi.insurance.integrations.legacy.IntegrationConflictException;
 import com.stevenmoriasi.insurance.integrations.legacy.IntegrationNotFoundException;
 import com.stevenmoriasi.insurance.integrations.payments.InvalidCallbackSignatureException;
@@ -24,5 +25,10 @@ class IntegrationApiExceptionHandler {
     @ExceptionHandler(InvalidCallbackSignatureException.class)
     ProblemDetail invalidSignature(InvalidCallbackSignatureException exception) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, exception.getMessage());
+    }
+
+    @ExceptionHandler(InvalidWorkLeaseException.class)
+    ProblemDetail invalidLease(InvalidWorkLeaseException exception) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, exception.getMessage());
     }
 }
