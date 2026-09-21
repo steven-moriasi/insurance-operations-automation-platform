@@ -1,5 +1,6 @@
 package com.stevenmoriasi.insurance.workflows.config;
 
+import com.stevenmoriasi.insurance.workflows.brokers.BrokerOnboardingWorkflowImpl;
 import com.stevenmoriasi.insurance.workflows.claims.ClaimActivities;
 import com.stevenmoriasi.insurance.workflows.claims.MotorClaimWorkflowImpl;
 import com.stevenmoriasi.insurance.workflows.renewals.PolicyRenewalWorkflowImpl;
@@ -44,7 +45,9 @@ class TemporalWorkerConfiguration {
             ClaimActivities activities) {
         Worker worker = workerFactory.newWorker(properties.taskQueue());
         worker.registerWorkflowImplementationTypes(
-                MotorClaimWorkflowImpl.class, PolicyRenewalWorkflowImpl.class);
+                MotorClaimWorkflowImpl.class,
+                PolicyRenewalWorkflowImpl.class,
+                BrokerOnboardingWorkflowImpl.class);
         worker.registerActivitiesImplementations(activities);
         return worker;
     }

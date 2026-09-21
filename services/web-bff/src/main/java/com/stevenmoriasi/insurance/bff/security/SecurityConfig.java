@@ -50,6 +50,7 @@ public class SecurityConfig {
                                                 "SENIOR_CLAIMS_APPROVER",
                                                 "CLAIMS_SUPERVISOR",
                                                 "FINANCE_OPERATOR",
+                                                "PROCESS_ANALYST",
                                                 "PROCESS_OWNER",
                                                 "PLATFORM_ADMIN")
                                         .requestMatchers("/api/workflows/**")
