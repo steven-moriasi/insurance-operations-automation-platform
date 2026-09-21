@@ -3,6 +3,9 @@ spring:
     name: insurance-workflow-service
   security:
     oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${OIDC_ISSUER_URI:http://localhost:8080/realms/insurance}
       client:
         registration:
           case-service:
@@ -32,6 +35,8 @@ management:
       application: ${spring.application.name}
 
 insurance:
+  security:
+    client-id: ${WORKFLOW_API_OIDC_CLIENT_ID:insurance-workflow-service}
   services:
     case-service-base-url: ${CASE_SERVICE_BASE_URL:http://localhost:8081}
   temporal:

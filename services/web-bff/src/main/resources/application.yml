@@ -34,6 +34,7 @@ server:
 insurance:
   services:
     case-service-base-url: ${CASE_SERVICE_BASE_URL:http://localhost:8081}
+    workflow-service-base-url: ${WORKFLOW_SERVICE_BASE_URL:http://localhost:8082}
 
 management:
   endpoints:
