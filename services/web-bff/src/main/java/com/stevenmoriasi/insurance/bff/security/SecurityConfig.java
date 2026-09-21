@@ -62,6 +62,15 @@ public class SecurityConfig {
                                                 "FINANCE_OPERATOR",
                                                 "PROCESS_OWNER",
                                                 "PLATFORM_ADMIN")
+                                        .requestMatchers("/api/integrations/**")
+                                        .hasAnyRole(
+                                                "CLAIMS_OFFICER",
+                                                "CLAIMS_ASSESSOR",
+                                                "CLAIMS_SUPERVISOR",
+                                                "FINANCE_OPERATOR",
+                                                "PROCESS_ANALYST",
+                                                "PROCESS_OWNER",
+                                                "PLATFORM_ADMIN")
                                         .anyRequest()
                                         .authenticated())
                 .csrf(
