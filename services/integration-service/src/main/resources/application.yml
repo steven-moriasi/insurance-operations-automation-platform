@@ -1,0 +1,43 @@
+spring:
+  application:
+    name: insurance-integration-service
+  datasource:
+    url: ${INTEGRATION_DATABASE_URL:jdbc:postgresql://localhost:5432/insurance_integrations}
+    username: ${INTEGRATION_DATABASE_USERNAME:insurance}
+    password: ${INTEGRATION_DATABASE_PASSWORD:insurance}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${OIDC_ISSUER_URI:http://localhost:8080/realms/insurance}
+
+server:
+  port: ${INTEGRATION_SERVICE_PORT:8083}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+insurance:
+  security:
+    client-id: ${INTEGRATION_API_OIDC_CLIENT_ID:insurance-integration-service}
+  legacy:
+    datasource:
+      url: ${LEGACY_DATABASE_URL:jdbc:mysql://localhost:3306/legacy_policy}
+      username: ${LEGACY_DATABASE_USERNAME:legacy_reader}
+      password: ${LEGACY_DATABASE_PASSWORD:legacy_reader}
+      driver-class-name: com.mysql.cj.jdbc.Driver

@@ -12,6 +12,7 @@
 
   <modules>
     <module>services/case-service</module>
+    <module>services/integration-service</module>
     <module>services/workflow-service</module>
     <module>services/web-bff</module>
   </modules>
