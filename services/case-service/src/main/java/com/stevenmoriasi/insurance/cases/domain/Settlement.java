@@ -24,6 +24,7 @@ public class Settlement {
     private SettlementStatus status;
 
     private String externalReference;
+    private Instant createdAt;
     private Instant instructedAt;
     private Instant reconciledAt;
 
@@ -42,7 +43,7 @@ public class Settlement {
         this.amount = amount;
         this.currency = currency;
         this.status = SettlementStatus.PENDING;
-        this.instructedAt = createdAt;
+        this.createdAt = createdAt;
     }
 
     public void markInstructed(String externalReference, Instant instructedAt) {
@@ -82,6 +83,10 @@ public class Settlement {
 
     public String getExternalReference() {
         return externalReference;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
     }
 
     public Instant getInstructedAt() {

@@ -36,7 +36,7 @@ interface DecisionRepository extends JpaRepository<Decision, UUID> {
 }
 
 interface SettlementRepository extends JpaRepository<Settlement, UUID> {
-    List<Settlement> findByClaimIdOrderByInstructedAtAsc(UUID claimId);
+    List<Settlement> findByClaimIdOrderByCreatedAtAsc(UUID claimId);
 }
 
 interface AuditEventRepository extends JpaRepository<AuditEvent, UUID> {
